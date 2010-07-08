@@ -1,0 +1,40 @@
+New tabs perl plugin for rxvt-unicode.
+
+Better tab looking, better tab controlling, tab names is user@host now.
+
+Installation
+~~~~~~~~~~~~
+Simply run:
+$ sudo make install
+
+Run
+~~~
+Simply run: 
+$ urxvt -pe tabbed_new
+or add 'tabbed_new' to 'URxvt.perl-ext-common' param in ~/.Xdefaults file
+
+Configure
+~~~~~~~~~
+add this params to ~/.Xdefaults file (tabs colors):
+
+URxvt.tabbed_new.tabdiv-fg: 8
+URxvt.tabbed_new.tabbar-fg: 8
+URxvt.tabbed_new.tabbar-bg: 0
+URxvt.tabbed_new.tabsel-fg: 1
+URxvt.tabbed_new.tabsel-bg: 8
+URxvt.tabbed_new.tab-fg:    0
+URxvt.tabbed_new.tab-bg:    8
+
+Usage
+~~~~~
+Mod4+T          - create new tab
+Ctrl+Tab        - move to next tab (continious)
+Mod4+Left       - move to previous tab
+Mod4+Right      - move to next tab
+Mod4+Ctrl+Left  - move current tab to left
+Mod4+Ctrl+Right - move current tab to right
+
+Todo
+~~~~
+- change tab name by enter it (manual)
+
