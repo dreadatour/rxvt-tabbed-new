@@ -16,13 +16,19 @@ sub refresh {
         my $is_rename = defined $self->{tab_rename_started} && $self->{tab_rename_started} && $tab == $self->{cur};
 
         my $txt = '  '.($tab->{manual_name} || $tab->{name}).'  ';
-        $txt = '  '.$tab->{tab_new_name}.'_  ' if $is_rename;
-        my $len = length $txt;
+        if ($is_rename) {
+            $txt  = '  '.$tab->{tab_new_name}.'  ';
+            $txt .= ' ' if $tab->{tab_new_pos} == length($tab->{tab_new_name});
+        }
+        my $len = length($txt);
 
         unless ($idx++) {
             # first tab
             substr $text, $ofs, $len, $txt;
-            if ($tab == $self->{cur}) {
+            if ($is_rename) {
+                @$rend[$ofs .. $ofs + $len - 1] = ($self->{rs_tab}) x $len;
+                @$rend[$ofs + $tab->{tab_new_pos} + 2] = $self->{rs_rename};
+            } elsif ($tab == $self->{cur}) {
                 @$rend[$ofs .. $ofs + $len - 1] = ($self->{rs_tab}) x $len;
             } elsif ($tab->{activity} && $tab != $self->{cur}) {
                 @$rend[$ofs .. $ofs + $len - 1] = ($self->{rs_tabsel}) x $len;
@@ -192,26 +198,30 @@ sub on_init {
 
     $self->option($urxvt::OPTION{scrollBar}, 0);
 
-    my $divfg = $self->x_resource("tabdiv-fg");
-    my $fg    = $self->x_resource("tabbar-fg");
-    my $bg    = $self->x_resource("tabbar-bg");
-    my $selfg = $self->x_resource("tabsel-fg");
-    my $selbg = $self->x_resource("tabsel-bg");
-    my $tabfg = $self->x_resource("tab-fg");
-    my $tabbg = $self->x_resource("tab-bg");
+    my $renamebg = $self->x_resource("tabren-bg");
+    my $divfg    = $self->x_resource("tabdiv-fg");
+    my $fg       = $self->x_resource("tabbar-fg");
+    my $bg       = $self->x_resource("tabbar-bg");
+    my $selfg    = $self->x_resource("tabsel-fg");
+    my $selbg    = $self->x_resource("tabsel-bg");
+    my $tabfg    = $self->x_resource("tab-fg");
+    my $tabbg    = $self->x_resource("tab-bg");
 
-    defined $divfg or $divfg = 8;
-    defined $fg    or $fg    = 0;
-    defined $bg    or $bg    = 15;
-    defined $tabfg or $tabfg = 1;
-    defined $tabbg or $tabbg = 15;
-    defined $selfg or $selfg = 0;
-    defined $selbg or $selbg = 7;
+    defined $renamebg or $renamebg = 11;
+    defined $divfg    or $divfg = 8;
+    defined $fg       or $fg    = 0;
+    defined $bg       or $bg    = 15;
+    defined $tabfg    or $tabfg = 1;
+    defined $tabbg    or $tabbg = 15;
+    defined $selfg    or $selfg = 0;
+    defined $selbg    or $selbg = 7;
 
     $self->{rs_tabbar} = urxvt::SET_COLOR(urxvt::DEFAULT_RSTYLE, $fg    + 2, $bg    + 2);
     $self->{rs_tabdiv} = urxvt::SET_COLOR(urxvt::DEFAULT_RSTYLE, $divfg + 2, $bg    + 2);
     $self->{rs_tabsel} = urxvt::SET_COLOR(urxvt::DEFAULT_RSTYLE, $selfg + 2, $selbg + 2);
     $self->{rs_tab}    = urxvt::SET_COLOR(urxvt::DEFAULT_RSTYLE, $tabfg + 2, $tabbg + 2);
+    
+    $self->{rs_rename} = urxvt::SET_COLOR(urxvt::DEFAULT_RSTYLE, $selfg + 2, $renamebg + 2);
 
     ();
 }
@@ -299,12 +309,54 @@ sub tab_key_press {
             $action = 'cancel-rename';
         } elsif ($keysum == 0xff0d || $keysum == 0xff8d) {  # Enter
             $action = 'confirm-rename';
-        } elsif ($keysum == 0xff08) {
-            $tab->{tab_new_name} = substr($tab->{tab_new_name}, 0, length($tab->{tab_new_name}) - 1) if length($tab->{tab_new_name});
+        } elsif ($keysum == 0xff51) {                       # Left
+            if ($tab->{tab_new_pos} > 0) {
+                $tab->{tab_new_pos}--;
+                $self->refresh;
+            }
+        } elsif ($keysum == 0xff53) {                       # Right
+            if ($tab->{tab_new_pos} < length($tab->{tab_new_name})) {
+                $tab->{tab_new_pos}++;
+                $self->refresh;
+            }
+        } elsif ($keysum == 0xff50) {                       # Home
+            if ($tab->{tab_new_pos} > 0) {
+                $tab->{tab_new_pos} = 0;
+                $self->refresh;
+            }
+        } elsif ($keysum == 0xff57) {                       # End
+            if ($tab->{tab_new_pos} < length($tab->{tab_new_name})) {
+                $tab->{tab_new_pos} = length($tab->{tab_new_name});
+                $self->refresh;
+            }
+        } elsif ($keysum == 0xff08) {                       # Backspace
+            if ($tab->{tab_new_pos} > 0) {
+                my $name = '';
+                $name   .= substr($tab->{tab_new_name}, 0,                   $tab->{tab_new_pos} - 1)      if $tab->{tab_new_pos} > 1;
+                $name   .= substr($tab->{tab_new_name}, $tab->{tab_new_pos}, length($tab->{tab_new_name})) if $tab->{tab_new_pos} < length($tab->{tab_new_name});
+                $tab->{tab_new_name} = $name;
+                $tab->{tab_new_pos}--;
+            }
+            $self->refresh;
+            return 1;
+        } elsif ($keysum == 0xffff) {                       # Delete
+            if ($tab->{tab_new_pos} < length($tab->{tab_new_name})) {
+                my $name = '';
+                $name   .= substr($tab->{tab_new_name}, 0,                       $tab->{tab_new_pos})          if $tab->{tab_new_pos} > 0;
+                $name   .= substr($tab->{tab_new_name}, $tab->{tab_new_pos} + 1, length($tab->{tab_new_name})) if $tab->{tab_new_pos} < length($tab->{tab_new_name}) - 1;
+                $tab->{tab_new_name} = $name;
+            }
             $self->refresh;
             return 1;
         } else {
-            $tab->{tab_new_name} .= $str unless $str =~ /[\x00-\x1f\x80-\xaf]/;
+            if ($str =~ /^[\x20-\x7f]$/) {       # printable symbols
+                my $name = '';
+                $name   .= substr($tab->{tab_new_name}, 0,                   $tab->{tab_new_pos})          if $tab->{tab_new_pos} > 0;
+                $name   .= $str;
+                $name   .= substr($tab->{tab_new_name}, $tab->{tab_new_pos}, length($tab->{tab_new_name})) if $tab->{tab_new_pos} < length($tab->{tab_new_name});
+                $tab->{tab_new_name} = $name;
+                $tab->{tab_new_pos}++;
+            }
             $self->refresh;
             return 1;
         }
@@ -330,18 +382,21 @@ sub tab_key_press {
             return 1;
         } elsif ($action eq 'rename-start') {
             $self->{tab_rename_started} = 1;
-            $tab->{tab_new_name}       = $tab->{manual_name} || '';
+            $tab->{tab_new_name} = $tab->{manual_name} || '';
+            $tab->{tab_new_pos} = length($tab->{tab_new_name});
             $self->refresh;
             return 1;
         } elsif ($action eq 'cancel-rename') {
             undef $self->{tab_rename_started};
             undef $tab->{tab_new_name};
+            undef $tab->{tab_new_pos};
             $self->refresh;
             return 1;
         } elsif ($action eq 'confirm-rename') {
             $tab->{manual_name} = $tab->{tab_new_name} || undef;
             undef $self->{tab_rename_started};
             undef $tab->{tab_new_name};
+            undef $tab->{tab_new_pos};
             $self->refresh;
             return 1;
         }

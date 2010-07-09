@@ -21,6 +21,7 @@ Configure
 ~~~~~~~~~
 add this params to ~/.Xdefaults file (tabs colors):
 
+URxvt.tabbed_new.tabren-bg: 3
 URxvt.tabbed_new.tabdiv-fg: 8
 URxvt.tabbed_new.tabbar-fg: 8
 URxvt.tabbed_new.tabbar-bg: 0
@@ -32,7 +33,8 @@ URxvt.tabbed_new.tab-bg:    8
 Usage
 ~~~~~
 Mod4+T          - create new tab
-Mod4+N          - rename corrent tab (Esc, Enter, Backspace keys for control renaming)
+Mod4+N          - rename corrent tab (keys for control renaming:
+                  Esc, Enter, Left, Right, Home, End, Backspace, Delete)
 Ctrl+Tab        - move to next tab (continious)
 Mod4+Left       - move to previous tab
 Mod4+Right      - move to next tab
@@ -41,6 +43,5 @@ Mod4+Ctrl+Right - move current tab to right
 
 Todo
 ~~~~
-- add additional controls in tab renaming (left, right, home, end, delete keys)
-- add tab highlighting on renaming
+- nothing to do =)
 
