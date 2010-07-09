@@ -1,6 +1,10 @@
 New tabs perl plugin for rxvt-unicode.
 
-Better tab looking, better tab controlling, tab names is user@host now.
+Diff with original 'tabbed' plugin:
+- better tab looking
+- better tab controlling
+- tab renaming
+- default tab name is user@host.
 
 Installation
 ~~~~~~~~~~~~
@@ -28,6 +32,7 @@ URxvt.tabbed_new.tab-bg:    8
 Usage
 ~~~~~
 Mod4+T          - create new tab
+Mod4+N          - rename corrent tab (Esc, Enter, Backspace keys for control renaming)
 Ctrl+Tab        - move to next tab (continious)
 Mod4+Left       - move to previous tab
 Mod4+Right      - move to next tab
@@ -36,5 +41,6 @@ Mod4+Ctrl+Right - move current tab to right
 
 Todo
 ~~~~
-- change tab name by enter it (manual)
+- add additional controls in tab renaming (left, right, home, end, delete keys)
+- add tab highlighting on renaming
 

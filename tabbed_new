@@ -13,7 +13,10 @@ sub refresh {
     my $idx = 0;
 
     for my $tab (@{ $self->{tabs} }) {
-        my $txt = '  '.$tab->{name}.'  ';
+        my $is_rename = defined $self->{tab_rename_started} && $self->{tab_rename_started} && $tab == $self->{cur};
+
+        my $txt = '  '.($tab->{manual_name} || $tab->{name}).'  ';
+        $txt = '  '.$tab->{tab_new_name}.'_  ' if $is_rename;
         my $len = length $txt;
 
         unless ($idx++) {
@@ -241,9 +244,11 @@ sub on_wm_delete_window {
 sub tab_name {
     my ($self, $name) = @_;
 
+    return unless $name =~ /\@/;
     my $tab = $self->{cur};
     $tab->{name} = $name;
     $self->refresh;
+    1;
 }
 
 sub tab_start {
@@ -251,6 +256,7 @@ sub tab_start {
     $tab->XChangeInput($tab->parent, urxvt::PropertyChangeMask);
     push @{ $self->{tabs} }, $tab;
     $tab->{name} ||= 'tab '.scalar @{ $self->{tabs} };
+    $tab->{manual_name} = undef;
     $self->make_current($tab);
     ();
 }
@@ -278,34 +284,65 @@ sub tab_key_press {
 
     if ($event->{state} & urxvt::Mod4Mask) {
         if ($event->{state} & urxvt::ControlMask) {
-            $action = 'move_left'  if $keysum == 0xff51;    # Mod4+Ctrl+Left
-            $action = 'move_right' if $keysum == 0xff53;    # Mod4+Ctrl+Right
+            $action = 'move-left'    if $keysum == 0xff51;  # Mod4+Ctrl+Left
+            $action = 'move-right'   if $keysum == 0xff53;  # Mod4+Ctrl+Right
         } else {
-            $action = 'prev_tab'   if $keysum == 0xff51;    # Mod4+Left
-            $action = 'next_tab'   if $keysum == 0xff53;    # Mod4+Right
-            $action = 'new_tab'    if $keysum == 0x74;      # Mod4+T
+            $action = 'prev-tab'     if $keysum == 0xff51;  # Mod4+Left
+            $action = 'next-tab'     if $keysum == 0xff53;  # Mod4+Right
+            $action = 'new-tab'      if $keysum == 0x74;    # Mod4+T
+            $action = 'rename-start' if $keysum == 0x6e;    # Mod4+N
         }
     } elsif ($event->{state} & urxvt::ControlMask) {
-        $action = 'next_tab'   if $keysum == 0xff09;        # Ctrl+Tab
-    } 
+        $action = 'next-tab'         if $keysum == 0xff09;  # Ctrl+Tab
+    } elsif (defined $self->{tab_rename_started} && $self->{tab_rename_started}) {
+        if ($keysum == 0xff1b) {                            # Esc
+            $action = 'cancel-rename';
+        } elsif ($keysum == 0xff0d || $keysum == 0xff8d) {  # Enter
+            $action = 'confirm-rename';
+        } elsif ($keysum == 0xff08) {
+            $tab->{tab_new_name} = substr($tab->{tab_new_name}, 0, length($tab->{tab_new_name}) - 1) if length($tab->{tab_new_name});
+            $self->refresh;
+            return 1;
+        } else {
+            $tab->{tab_new_name} .= $str unless $str =~ /[\x00-\x1f\x80-\xaf]/;
+            $self->refresh;
+            return 1;
+        }
+    }
 
     if (defined $action) {
-        if ($action eq 'next_tab' || $action eq 'prev_tab') {
+        if ($action eq 'next-tab' || $action eq 'prev-tab') {
             my ($idx) = grep $self->{tabs}[$_] == $tab, 0 .. $#{ $self->{tabs} };
-            --$idx if $action eq 'prev_tab';
-            ++$idx if $action eq 'next_tab';
+            --$idx if $action eq 'prev-tab';
+            ++$idx if $action eq 'next-tab';
             $self->make_current($self->{tabs}[$idx % @{ $self->{tabs}}]);
             return 1;
-        } elsif ($action eq 'move_left' || $action eq 'move_right') {
+        } elsif ($action eq 'move-left' || $action eq 'move-right') {
             my ($idx1) = grep $self->{tabs}[$_] == $tab, 0 .. $#{ $self->{tabs} };
-            if (($action eq 'move_left' && $idx1 > 0) || ($action eq 'move_right' && $idx1 < $#{ $self->{tabs} })) {
-                my $idx2  = ($idx1 + ($action eq 'move_left' ? -1 : +1)) % @{ $self->{tabs} };
+            if (($action eq 'move-left' && $idx1 > 0) || ($action eq 'move-right' && $idx1 < $#{ $self->{tabs} })) {
+                my $idx2  = ($idx1 + ($action eq 'move-left' ? -1 : +1)) % @{ $self->{tabs} };
                 ($self->{tabs}[$idx1], $self->{tabs}[$idx2]) = ($self->{tabs}[$idx2], $self->{tabs}[$idx1]);
                 $self->make_current($self->{tabs}[$idx2]);
             }
             return 1;
-        } elsif ($action eq 'new_tab') {
+        } elsif ($action eq 'new-tab') {
             $self->new_tab;
+            return 1;
+        } elsif ($action eq 'rename-start') {
+            $self->{tab_rename_started} = 1;
+            $tab->{tab_new_name}       = $tab->{manual_name} || '';
+            $self->refresh;
+            return 1;
+        } elsif ($action eq 'cancel-rename') {
+            undef $self->{tab_rename_started};
+            undef $tab->{tab_new_name};
+            $self->refresh;
+            return 1;
+        } elsif ($action eq 'confirm-rename') {
+            $tab->{manual_name} = $tab->{tab_new_name} || undef;
+            undef $self->{tab_rename_started};
+            undef $tab->{tab_new_name};
+            $self->refresh;
             return 1;
         }
     }
