@@ -314,21 +314,25 @@ sub tab_key_press {
                 $tab->{tab_new_pos}--;
                 $self->refresh;
             }
+            return 1;
         } elsif ($keysum == 0xff53) {                       # Right
             if ($tab->{tab_new_pos} < length($tab->{tab_new_name})) {
                 $tab->{tab_new_pos}++;
                 $self->refresh;
             }
+            return 1;
         } elsif ($keysum == 0xff50) {                       # Home
             if ($tab->{tab_new_pos} > 0) {
                 $tab->{tab_new_pos} = 0;
                 $self->refresh;
             }
+            return 1;
         } elsif ($keysum == 0xff57) {                       # End
             if ($tab->{tab_new_pos} < length($tab->{tab_new_name})) {
                 $tab->{tab_new_pos} = length($tab->{tab_new_name});
                 $self->refresh;
             }
+            return 1;
         } elsif ($keysum == 0xff08) {                       # Backspace
             if ($tab->{tab_new_pos} > 0) {
                 my $name = '';
